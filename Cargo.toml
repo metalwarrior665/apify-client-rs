@@ -1,0 +1,10 @@
+[package]
+name = "apify-client"
+version = "0.1.0"
+authors = ["metalwarrior665 <lukaskrivka@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+reqwest = "0.10.4"
+serde = "1.0.106"
+tokio = { version = "^0.2", features = ["time"] }
