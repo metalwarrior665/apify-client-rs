@@ -21,17 +21,39 @@ pub struct ApifyApiErrorRawWrapper {
 }
 
 impl ApifyClient {
-    async fn simple_request (&self, url: &str, method: &reqwest::Method, body: Vec<u8>, headers: reqwest::header::HeaderMap) -> Result<reqwest::Response, reqwest::Error> {
-        match method {
-            &reqwest::Method::GET => self.client.get(url).send().await,
-            &reqwest::Method::POST => self.client.get(url).body(body).headers(headers).send().await,
-            &reqwest::Method::PUT => self.client.get(url).body(body).headers(headers).send().await,
-            &reqwest::Method::DELETE => self.client.get(url).send().await,
+    async fn simple_request (
+        &self,
+        url: &str,
+        method: &reqwest::Method,
+        body: Option<Vec<u8>>,
+        headers: Option<reqwest::header::HeaderMap>
+    ) -> Result<reqwest::Response, reqwest::Error> {
+        let mut req_builder = match *method {
+            reqwest::Method::GET => self.client.get(url),
+            reqwest::Method::POST => self.client.post(url),
+            reqwest::Method::PUT => self.client.put(url),
+            reqwest::Method::DELETE => self.client.delete(url),
             _ => panic!("Request method not allowed!"),
+        };
+        if let Some(body) = body {
+            req_builder = req_builder.body(body);
         }
+        if let Some(headers) = headers {
+            req_builder = req_builder.headers(headers);
+        }
+        req_builder.send().await
     }
 
-    pub async fn retrying_request (&self, url: &str, method: &reqwest::Method, body: Vec<u8>, headers: reqwest::header::HeaderMap) -> Result<reqwest::Response, ApifyClientError> {
+    pub async fn retrying_request (
+        &self,
+        url: &str,
+        method: &reqwest::Method,
+        body: Option<Vec<u8>>,
+        headers: Option<reqwest::header::HeaderMap>
+    ) -> Result<reqwest::Response, ApifyClientError> {
+        if self.debug_log {
+            println!("Doing request to: {}", url);
+        }
         let mut rate_limit_retry_count: u8 = 0;
         let mut server_failed_retry_count: u8 = 0;
         let mut timeout_retry_count: u8 = 0;

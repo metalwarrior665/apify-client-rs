@@ -1,4 +1,5 @@
 use reqwest;
+use serde::Deserialize;
 
 pub struct ResourceName {
     pub user_name_or_user_id: String,
@@ -19,6 +20,12 @@ pub struct ApifyClient {
     pub debug_log: bool,
 }
 
+#[derive(Deserialize, Debug)]
+pub struct ApifyClientResult<T> {
+    pub data: T
+}
+
+
 #[derive(Debug)]
 pub enum ApifyClientError {
     // The variant here is "type" and the param is "message"
@@ -28,16 +35,6 @@ pub enum ApifyClientError {
     MaxTimeoutRetriesReached(u8),
     MaxRateLimitRetriesReached(u8),
     MaxServerFailedRetriesReached(u8)
-}
-
-// Should T implement Deserialize? That depends how we want to return CSV output
-pub struct PaginationList<T> {
-    total: u32,
-    offset: u32,
-    limit: u32,
-    count: u32,
-    desc: bool,
-    items: Vec<T>
 }
 
 impl ApifyClient {
