@@ -25,8 +25,8 @@ impl ApifyClient {
         &self,
         url: &str,
         method: &reqwest::Method,
-        body: Option<Vec<u8>>,
-        headers: Option<reqwest::header::HeaderMap>
+        optional_body: &Option<Vec<u8>>,
+        headers: &Option<reqwest::header::HeaderMap>
     ) -> Result<reqwest::Response, reqwest::Error> {
         let mut req_builder = match *method {
             reqwest::Method::GET => self.client.get(url),
@@ -35,10 +35,13 @@ impl ApifyClient {
             reqwest::Method::DELETE => self.client.delete(url),
             _ => panic!("Request method not allowed!"),
         };
-        if let Some(body) = body {
+
+        // TODO: Figure out how to remove the clones here
+        if let Some(body) = optional_body.clone() {
+            println!("Body size is: {}", body.len());
             req_builder = req_builder.body(body);
         }
-        if let Some(headers) = headers {
+        if let Some(headers) = headers.clone() {
             req_builder = req_builder.headers(headers);
         }
         req_builder.send().await
@@ -48,8 +51,8 @@ impl ApifyClient {
         &self,
         url: &str,
         method: &reqwest::Method,
-        body: Option<Vec<u8>>,
-        headers: Option<reqwest::header::HeaderMap>
+        body: &Option<Vec<u8>>,
+        headers: &Option<reqwest::header::HeaderMap>
     ) -> Result<reqwest::Response, ApifyClientError> {
         if self.debug_log {
             println!("Doing request to: {}", url);
@@ -67,8 +70,8 @@ impl ApifyClient {
             if timeout_retry_count >= MAX_TIMEOUT_RETRIES {
                 return Err(ApifyClientError::MaxTimeoutRetriesReached(timeout_retry_count));
             }
-            // TODO: Remove clones (moved in the loop)
-            match self.simple_request(url, method, body.clone(), headers.clone()).await {
+            // TODO: Remove clones (moved in the loop), request could move back the body if should be retried
+            match self.simple_request(url, method, body, headers).await {
                 Ok(resp) => {
                     let status_code = resp.status().as_u16();
                     if status_code == 429 || status_code >= 500 {

@@ -19,9 +19,25 @@ async fn main() {
     let my_client = client::ApifyClient::new(token.ok());
 
     // CREATE DATASET
+    
     let name = "RUST-TEST";
     let dataset = my_client.create_dataset(name).send().await;
     println!("{:?}", dataset);
+    
+    let dataset_id = IdOrName::Id(dataset.unwrap().id);
+
+    // DELETE DATASET
+    /*
+    my_client.delete_dataset(&dataset_id).send().await;
+    */
+
+    // PUT ITEMS
+
+    let item1 = serde_json::json!({ "obj": 1 });
+    let item2 = serde_json::json!({ "obj": 2 });
+    let v = vec![item1, item2];
+    let put_result = my_client.put_items(&dataset_id, &v).send().await;
+    println!("Put result: {:?}", put_result);
 
     // LIST DATASETS
     /*
