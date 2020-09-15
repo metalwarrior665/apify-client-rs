@@ -12,3 +12,5 @@ mod datasets;
 mod request;
 mod utils;
 mod generic_types;
+
+use crate::client::{ApifyClient, IdOrName};
