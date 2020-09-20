@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["metalwarrior665 <lukaskrivka@gmail.com>"]
 edition = "2018"
 description = "Typed wrapper for Apify API"
+homepage = "https://github.com/metalwarrior665/apify-client-rs"
 repository = "https://github.com/metalwarrior665/apify-client-rs"
 keywords = ["apify", "web-scraping", "web-automation"]
 categories = ["api-bindings"]
