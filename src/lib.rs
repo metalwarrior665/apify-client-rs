@@ -80,7 +80,24 @@ mod test {
         assert_eq!(maybe_dataset.unwrap_err(), ApifyClientError::NotFound("Dataset was not found".to_string()));
     }
     
-    
+    #[test]
+    fn list_datasets_test () {
+        let client = create_client();
+        let name = "RUST-TEST-LIST";
+
+        let dataset = create_dataset(&client, name);
+        let dataset_id = dataset.id;
+        
+        let maybe_pagination_list = await_test!(client.list_datasets().limit(10).send());
+        assert!(maybe_pagination_list.is_ok());
+        assert!(maybe_pagination_list.unwrap().items.iter().find(|dataset| dataset.id == dataset_id.clone()).is_some());
+
+        delete_dataset(&client, &IdOrName::Id(dataset_id.clone()));
+
+        let maybe_pagination_list = await_test!(client.list_datasets().limit(10).send());
+        assert!(maybe_pagination_list.is_ok());
+        assert!(maybe_pagination_list.unwrap().items.iter().find(|dataset| dataset.id == dataset_id).is_none());
+    }
     
     // let dataset_id = IdOrName::Id(dataset.unwrap().id);
 }

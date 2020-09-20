@@ -18,7 +18,7 @@ pub struct PaginationList<T> {
     limit: Option<u32>,
     count: u32,
     desc: bool,
-    items: Vec<T>
+    pub items: Vec<T>
 }
 
 pub struct SimpleBuilder <'a, T> {
