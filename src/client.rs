@@ -26,7 +26,7 @@ pub struct ApifyClientResult<T> {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ApifyClientError {
     // The variant here is "type" and the param is "message"
     NotFound(String),

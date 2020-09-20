@@ -2,7 +2,7 @@ use crate::client::{ ApifyClient, ApifyClientResult, ApifyClientError };
 use std::marker::PhantomData;
 use serde::{Deserialize};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct NoContent;
 
 impl NoContent {

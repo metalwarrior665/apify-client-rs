@@ -110,15 +110,15 @@ impl ApifyClient {
 #[serde(rename_all = "camelCase")]
 pub struct Dataset {
     pub id: String,
-    name: Option<String>,
-    user_id: String,
-    created_at: String,
-    modified_at: String,
-    accessed_at: String,
-    item_count: u32,
-    clean_item_count: Option<u32>,
-    act_id: Option<String>,
-    act_run_id: Option<String>
+    pub name: Option<String>,
+    pub user_id: String,
+    pub created_at: String,
+    pub modified_at: String,
+    pub accessed_at: String,
+    pub item_count: u32,
+    pub clean_item_count: Option<u32>,
+    pub act_id: Option<String>,
+    pub act_run_id: Option<String>
 }
 
 #[derive(QueryParams)]

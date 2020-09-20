@@ -10,3 +10,6 @@ serde = { version = "1.0.110", features = ["derive"] }
 tokio = { version = "^0.2", features = ["full"] }
 query_params = "0.1.0"
 serde_json = "1.0.55"
+
+[dev-dependencies]
+tokio-test = "*"
