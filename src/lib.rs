@@ -96,16 +96,23 @@ mod test {
         assert!(maybe_pagination_list.unwrap().items.iter().find(|dataset| dataset.id == dataset_id).is_none());
     }
 
+    // TODO: Add get items into the test
     #[test] 
     fn put_items () {
-        /*
-        // PUT ITEMS
+        let client = create_client();
+        let name = "RUST-TEST-PUT-ITEMS";
+
+        let dataset = create_dataset(&client, name);
+        let dataset_id = dataset.id;
 
         let item1 = serde_json::json!({ "obj": 1 });
         let item2 = serde_json::json!({ "obj": 2 });
         let v = vec![item1, item2];
-        let put_result = my_client.put_items(&dataset_id, &v).send().await;
-        println!("Put result: {:?}", put_result);
-        */
+        let put_result = await_test!(client.put_items(&IdOrName::Id(dataset_id.clone()), &v).send());
+        assert!(put_result.is_ok());
+        assert_eq!(put_result.unwrap(), NoContent::new());
+
+        let no_content = delete_dataset(&client, &IdOrName::Id(dataset_id.clone()));
+        assert_eq!(no_content, NoContent::new());
     }
 }
