@@ -1,6 +1,3 @@
-extern crate reqwest;
-extern crate serde;
-extern crate tokio;
 #[macro_use]
 extern crate query_params;
 #[macro_use]
@@ -98,6 +95,17 @@ mod test {
         assert!(maybe_pagination_list.is_ok());
         assert!(maybe_pagination_list.unwrap().items.iter().find(|dataset| dataset.id == dataset_id).is_none());
     }
-    
-    // let dataset_id = IdOrName::Id(dataset.unwrap().id);
+
+    #[test] 
+    fn put_items () {
+        /*
+        // PUT ITEMS
+
+        let item1 = serde_json::json!({ "obj": 1 });
+        let item2 = serde_json::json!({ "obj": 2 });
+        let v = vec![item1, item2];
+        let put_result = my_client.put_items(&dataset_id, &v).send().await;
+        println!("Put result: {:?}", put_result);
+        */
+    }
 }

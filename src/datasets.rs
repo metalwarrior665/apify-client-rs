@@ -4,7 +4,7 @@ use crate::generic_types::{SimpleBuilder, PaginationList, NoContent};
 use std::marker::PhantomData;
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+// use serde_json::Value;
 use reqwest::header::{HeaderMap, CONTENT_TYPE};
 
 impl ApifyClient {
@@ -130,7 +130,7 @@ struct ListDatasetsParams {
 }
 
 pub struct ListDatasetsBuilder<'a> {
-    pub client: &'a ApifyClient,
+    client: &'a ApifyClient,
     options: ListDatasetsParams
 }
 

@@ -51,7 +51,7 @@ impl<'a> SimpleBuilder<'a, NoContent> {
         let resp = self.client.retrying_request(&self.url, &self.method, &self.body, &self.headers).await;
         match resp {
             Err(err) => Err(err),
-            Ok(resp) => { 
+            Ok(_) => { 
                 Ok(NoContent::new())
             }    
         }
