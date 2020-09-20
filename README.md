@@ -1,4 +1,4 @@
-## Apify Client in Rust
+## Apify API Client in Rust
 Work in progress!
 
 Typed wrapper for [Apify API](https://docs.apify.com/api/v2)
