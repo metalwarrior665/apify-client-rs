@@ -96,8 +96,10 @@ impl ApifyClient {
         }
     }
 
+    /// Appends item(s) at the end of the dataset.
+    /// `items` must serialize into JSON object or array of objects, otherwise the Apify API returns an error.
     /// Requires API token
-    pub fn put_items<T: Serialize>(&self, dataset_id_or_name: &IdOrName, items: &[T]) -> SimpleBuilder<'_, NoContent> {
+    pub fn put_items<T: Serialize>(&self, dataset_id_or_name: &IdOrName, items: &T) -> SimpleBuilder<'_, NoContent> {
         if self.optional_token.is_none() {
             panic!("put_items requires a token!");
         }
