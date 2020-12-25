@@ -1,6 +1,8 @@
 use reqwest;
 use serde::Deserialize;
 
+pub const BASE_PATH: &str = "https://api.apify.com/v2";
+
 pub struct ResourceName {
     pub user_name_or_user_id: String,
     pub resource_name: String
@@ -14,8 +16,7 @@ pub enum IdOrName {
 pub struct ApifyClient {
     // The token is optional
     pub optional_token: Option<String>,
-    pub client: reqwest::Client,
-    pub base_path: String,
+    pub http_client: reqwest::Client,
     pub base_time_to_retry: u32,
     pub debug_log: bool,
 }
@@ -46,11 +47,10 @@ impl ApifyClient {
         if let Some(token) = &optional_token {
             assert_eq!(token.len(), 25);
         }
-        let client = reqwest::Client::new();
+        let http_client = reqwest::Client::new();
         ApifyClient {
             optional_token,
-            client,
-            base_path: "https://api.apify.com/v2".to_owned(),
+            http_client,
             base_time_to_retry: 500,
             debug_log: true,
         }

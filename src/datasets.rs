@@ -1,4 +1,4 @@
-use crate::client::{ApifyClient, ApifyClientError, ApifyClientResult, IdOrName};
+use crate::client::{ApifyClient, ApifyClientError, ApifyClientResult, IdOrName, BASE_PATH};
 use crate::utils::{create_resource_locator, ResourceType};
 use crate::generic_types::{SimpleBuilder, PaginationList, NoContent};
 use std::marker::PhantomData;
@@ -30,7 +30,7 @@ impl ApifyClient {
         if self.optional_token.is_none() {
             panic!("create_dataset requires a token!");
         }
-        let url = format!("{}/datasets?name={}&token={}", self.base_path, dataset_name, self.optional_token.as_ref().unwrap());
+        let url = format!("{}/datasets?name={}&token={}", BASE_PATH, dataset_name, self.optional_token.as_ref().unwrap());
         SimpleBuilder {
             client: self,
             url,
@@ -46,7 +46,7 @@ impl ApifyClient {
     /// If you provide username~datasetName, you need a token (otherwise it will panic)
     pub fn get_dataset(&self, dataset_id_or_name: &IdOrName) -> SimpleBuilder<'_, Dataset> {
         let dataset_id_or_name_val = create_resource_locator(self, dataset_id_or_name, ResourceType::Dataset);
-        let url = format!("{}/datasets/{}", self.base_path, dataset_id_or_name_val);
+        let url = format!("{}/datasets/{}", BASE_PATH, dataset_id_or_name_val);
         let url_with_query = match &self.optional_token {
             None => url,
             Some(token) => format!("{}?token={}", &url, token)
@@ -73,7 +73,7 @@ impl ApifyClient {
             panic!("delete_dataset requires a token!");
         }
         let dataset_id_or_name_val = create_resource_locator(self, dataset_id_or_name, ResourceType::Dataset);
-        let url = format!("{}/datasets/{}?token={}", self.base_path, dataset_id_or_name_val, self.optional_token.as_ref().unwrap());
+        let url = format!("{}/datasets/{}?token={}", BASE_PATH, dataset_id_or_name_val, self.optional_token.as_ref().unwrap());
         SimpleBuilder {
             client: self,
             url,
@@ -90,7 +90,7 @@ impl ApifyClient {
             panic!("put_items requires a token!");
         }
         let dataset_id_or_name_val = create_resource_locator(self, dataset_id_or_name, ResourceType::Dataset);
-        let url = format!("{}/datasets/{}/items?token={}", self.base_path, dataset_id_or_name_val, self.optional_token.as_ref().unwrap());
+        let url = format!("{}/datasets/{}/items?token={}", BASE_PATH, dataset_id_or_name_val, self.optional_token.as_ref().unwrap());
         let bytes = serde_json::to_vec(items).unwrap();
         println!("bytes length: {}", bytes.len());
         let mut headers = HeaderMap::new();
@@ -157,7 +157,7 @@ impl <'a> ListDatasetsBuilder<'a> {
         if query_string.is_empty() {
             query_string = "?".to_string();
         }
-        let url = format!("{}/datasets{}&token={}", self.client.base_path, query_string, self.client.optional_token.as_ref().unwrap());
+        let url = format!("{}/datasets{}&token={}", BASE_PATH, query_string, self.client.optional_token.as_ref().unwrap());
         let resp = self.client.retrying_request(&url, &reqwest::Method::GET, &None, &None).await;
         match resp {
             Err(err) => Err(err),
