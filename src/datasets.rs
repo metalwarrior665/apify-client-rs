@@ -1,11 +1,10 @@
 use crate::client::{ApifyClient, ApifyClientError, ApifyClientResult, IdOrName, BASE_PATH};
-use crate::utils::{create_resource_locator, ResourceType};
+use crate::utils::{create_resource_locator, ResourceType, json_content_headers};
 use crate::generic_types::{SimpleBuilder, PaginationList, NoContent};
 use std::marker::PhantomData;
 
 use serde::{Deserialize, Serialize};
 // use serde_json::Value;
-use reqwest::header::{HeaderMap, CONTENT_TYPE};
 
 impl ApifyClient {
     /// List datasets of the provided account
@@ -63,8 +62,21 @@ impl ApifyClient {
     }
 
     /// Requires API token
-    pub fn update_dataset(&self, dataset_id_or_name: &IdOrName) -> SimpleBuilder<'_, Dataset> {
-        unimplemented!()
+    pub fn update_dataset(&self, dataset_id_or_name: &IdOrName, new_dataset_name: &str) -> SimpleBuilder<'_, Dataset> {
+        let dataset_id_or_name_val = create_resource_locator(self, dataset_id_or_name, ResourceType::Dataset);
+        let url = format!("{}/datasets/{}?token={}", BASE_PATH, dataset_id_or_name_val, self.optional_token.as_ref().unwrap());
+        let json_body = json!({
+            "name": new_dataset_name
+        });
+        let bytes = serde_json::to_vec(&json_body).unwrap();
+        SimpleBuilder {
+            client: self,
+            url,
+            method: reqwest::Method::PUT,
+            body: Some(bytes),
+            headers: Some(json_content_headers()),
+            phantom: PhantomData,
+        }
     }
 
     /// Requires API token
@@ -93,14 +105,13 @@ impl ApifyClient {
         let url = format!("{}/datasets/{}/items?token={}", BASE_PATH, dataset_id_or_name_val, self.optional_token.as_ref().unwrap());
         let bytes = serde_json::to_vec(items).unwrap();
         println!("bytes length: {}", bytes.len());
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, "application/json".parse().unwrap());
+        
         SimpleBuilder {
             client: self,
             url,
             method: reqwest::Method::POST,
             body: Some(bytes),
-            headers: Some(headers),
+            headers: Some(json_content_headers()),
             phantom: PhantomData,
         }
     }

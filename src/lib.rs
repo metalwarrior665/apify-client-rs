@@ -44,6 +44,11 @@ mod test {
         dataset
     }
 
+    fn update_dataset (client: &ApifyClient, id_or_name: &IdOrName, name: &str) -> Dataset {
+        let dataset = await_test!(client.update_dataset(id_or_name, name).send()).unwrap();
+        dataset
+    }
+
     fn delete_dataset (client: &ApifyClient, id_or_name: &IdOrName) -> NoContent {
         let no_content = await_test!(client.delete_dataset(id_or_name).send()).unwrap();
         no_content
@@ -57,7 +62,7 @@ mod test {
     // This is done as one mega test to limit number of API calls when cleaning
     // but perhaps there is a better way
     #[test]
-    fn create_and_get_and_delete_dataset () {
+    fn create_update_get_and_delete_dataset () {
         let client = create_client();
         let name = "RUST-TEST-CREATE";
 
@@ -68,6 +73,13 @@ mod test {
 
         let maybe_dataset = get_dataset(&client, &IdOrName::Id(dataset_id.clone()));
         assert_eq!(maybe_dataset.unwrap().name.unwrap(), name);
+
+        let new_name = "RUST-TEST-UPDATE";
+        let dataset = update_dataset(&client, &IdOrName::Id(dataset_id.clone()), new_name);
+        assert_eq!(dataset.name.unwrap(), new_name);
+
+        let maybe_dataset = get_dataset(&client, &IdOrName::Id(dataset_id.clone()));
+        assert_eq!(maybe_dataset.unwrap().name.unwrap(), new_name);
 
         let no_content = delete_dataset(&client, &IdOrName::Id(dataset.id));
         assert_eq!(no_content, NoContent::new());
