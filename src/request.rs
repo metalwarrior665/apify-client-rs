@@ -1,4 +1,4 @@
-use crate::client::{ApifyClient, ApifyClientError};
+use crate::client::{ApifyClient, ApifyApiError};
 use tokio::time::delay_for;
 use std::time::Duration;
 use serde::{Deserialize};
@@ -33,7 +33,8 @@ impl ApifyClient {
             reqwest::Method::POST => self.http_client.post(url),
             reqwest::Method::PUT => self.http_client.put(url),
             reqwest::Method::DELETE => self.http_client.delete(url),
-            _ => panic!("Request method not allowed!"),
+            // This error is only for the developer
+            _ => panic!("Request method not usable with Apify API!"),
         };
 
         // TODO: Figure out how to remove the clones here
@@ -53,7 +54,7 @@ impl ApifyClient {
         method: &reqwest::Method,
         body: &Option<Vec<u8>>,
         headers: &Option<reqwest::header::HeaderMap>
-    ) -> Result<reqwest::Response, ApifyClientError> {
+    ) -> Result<reqwest::Response, ApifyApiError> {
         if self.debug_log {
             println!("Doing {} request to: {}", method, url);
         }
@@ -62,13 +63,13 @@ impl ApifyClient {
         let mut timeout_retry_count: u8 = 0;
         loop {
             if rate_limit_retry_count >= MAX_RATE_LIMIT_RETRIES {
-                return Err(ApifyClientError::MaxRateLimitRetriesReached(rate_limit_retry_count));
+                return Err(ApifyApiError::MaxRateLimitRetriesReached(rate_limit_retry_count));
             }
             if server_failed_retry_count >= MAX_SERVER_FAIL_RETRIES {
-                return Err(ApifyClientError::MaxServerFailedRetriesReached(server_failed_retry_count));
+                return Err(ApifyApiError::MaxServerFailedRetriesReached(server_failed_retry_count));
             }
             if timeout_retry_count >= MAX_TIMEOUT_RETRIES {
-                return Err(ApifyClientError::MaxTimeoutRetriesReached(timeout_retry_count));
+                return Err(ApifyApiError::MaxTimeoutRetriesReached(timeout_retry_count));
             }
             // TODO: Remove clones (moved in the loop), request could move back the body if should be retried
             match self.simple_request(url, method, body, headers).await {
@@ -94,17 +95,17 @@ impl ApifyClient {
                         delay_for(Duration::from_millis(time_to_next_retry.into())).await;
                         continue;
                     } else if status_code >= 300 {
-                        // TODO: This should never fail but still we should handle this gracefully
-                        let raw_error: ApifyApiErrorRawWrapper = resp.json().await.unwrap();
+                        let raw_error: ApifyApiErrorRawWrapper = resp.json().await.map_err(
+                            |err| ApifyApiError::ApiFailure(format!("Apify API did not return correct error format. Something is very wrong. Please contact support@apify.com\n{}", err))
+                        )?;
                         // error route
                         if status_code == 404 {
-                            return Err(ApifyClientError::NotFound(raw_error.error.message));
+                            return Err(ApifyApiError::NotFound(raw_error.error.message));
                         }
-                        return Err(ApifyClientError::RawError(raw_error.error.message));
+                        return Err(ApifyApiError::RawError(raw_error.error.message));
                         // more types here
                     } else {
                         // ok route
-                        // TODO: Remove unwrap
                         return Ok(resp);
                     }
                 }
@@ -119,7 +120,7 @@ impl ApifyClient {
                         continue;
                     }
                     // Maybe other types here
-                    panic!("ApifyClientError: Uknown error, please create an issue on GitHub! {}", err);
+                    return Err(ApifyApiError::ApiFailure(format!("Uknown error, please create an issue on GitHub! {}", err)));
                 }
             }
         }

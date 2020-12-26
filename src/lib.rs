@@ -15,7 +15,7 @@ pub mod generic_types;
 // TODO: Cleanup if tests crash in the middle
 #[cfg(test)]
 mod test {
-    use super::client::{ApifyClient, IdOrName, ApifyClientError};
+    use super::client::{ApifyClient, IdOrName, ApifyApiError, ApifyClientError};
     use super::datasets::{Dataset};
     use super::generic_types::{NoContent, PaginationList};
     use serde::{Serialize, Deserialize};
@@ -110,7 +110,11 @@ mod test {
 
         let maybe_dataset = get_dataset(&client, &IdOrName::Id(dataset_id));
         assert!(maybe_dataset.is_err());
-        assert_eq!(maybe_dataset.unwrap_err(), ApifyClientError::NotFound("Dataset was not found".to_string()));
+        let is_correct_error = match maybe_dataset.unwrap_err() {
+            ApifyClientError::ApifyApi(ApifyApiError::NotFound(text)) => text == "Dataset was not found".to_string(),
+            _ => false,
+        };
+        assert!(is_correct_error);
     }
     
     #[test]
