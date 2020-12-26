@@ -5,11 +5,13 @@ Typed wrapper for [Apify API](https://docs.apify.com/api/v2)
 
 Currently implemented:
 - Client 
-    - Exponenetial backoff
+    - Exponential backoff
     - Error types (not complete)
 - Datasets
     - List datasets
     - Create dataset
     - Get dataset
+    - Update dataset
     - Delete dataset
+    - Get items
     - Put items

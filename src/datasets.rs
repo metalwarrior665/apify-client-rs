@@ -3,7 +3,7 @@ use crate::utils::{create_resource_locator, ResourceType, json_content_headers};
 use crate::generic_types::{SimpleBuilder, PaginationList, NoContent};
 use std::marker::PhantomData;
 
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 // use serde_json::Value;
 
 impl ApifyClient {
@@ -15,12 +15,7 @@ impl ApifyClient {
         }
         ListDatasetsBuilder {
             client: self,
-            options: ListDatasetsParams {
-                offset: None,
-                limit: None,
-                desc: None,
-                unnamed: None,
-            }
+            options: ListDatasetsParams::default(),
         }
     }
 
@@ -97,8 +92,10 @@ impl ApifyClient {
     }
 
     /// Appends item(s) at the end of the dataset.
-    /// `items` must serialize into JSON object or array of objects, otherwise the Apify API returns an error.
-    /// Requires API token
+    /// `items` must serialize into JSON object or array of objects and the JSON must have size less than 5 MB.
+    /// Otherwise the Apify API returns an error.
+    /// Requires API token.
+    /// [API reference](https://docs.apify.com/api/v2#/reference/datasets/item-collection/put-items)
     pub fn put_items<T: Serialize>(&self, dataset_id_or_name: &IdOrName, items: &T) -> SimpleBuilder<'_, NoContent> {
         if self.optional_token.is_none() {
             panic!("put_items requires a token!");
@@ -115,6 +112,30 @@ impl ApifyClient {
             body: Some(bytes),
             headers: Some(json_content_headers()),
             phantom: PhantomData,
+        }
+    }
+
+    /// Gets items from the dataset in JSON format and parses them into `PaginationList<T>`.
+    /// If you need non-parsed String and/or different formats choose `get_items_raw` instead.
+    /// [API reference](https://docs.apify.com/api/v2#/reference/datasets/item-collection/get-items).
+    pub fn get_items<'de, T: serde::de::DeserializeOwned>(&self, dataset_id_or_name: &IdOrName) -> GetItemsBuilder<'_, T> {
+        let dataset_id_or_name_val = create_resource_locator(self, dataset_id_or_name, ResourceType::Dataset);
+        GetItemsBuilder {
+            client: self,
+            dataset_id_or_name_val,
+            options: GetItemsParams::default(),
+            _phantom: PhantomData,
+        }
+    }
+
+    /// Gets items from the dataset in any format and return them as `String` (no PaginationList). 
+    /// [API reference](https://docs.apify.com/api/v2#/reference/datasets/item-collection/get-items).
+    pub fn get_items_raw(&self, dataset_id_or_name: &IdOrName) -> GetItemsBuilderRaw<'_> {
+        let dataset_id_or_name_val = create_resource_locator(self, dataset_id_or_name, ResourceType::Dataset);
+        GetItemsBuilderRaw {
+            client: self,
+            dataset_id_or_name_val,
+            options: GetItemsParams::default(),
         }
     }
 }
@@ -134,7 +155,282 @@ pub struct Dataset {
     pub act_run_id: Option<String>
 }
 
-#[derive(QueryParams)]
+#[derive(Debug)]
+pub enum Format {
+    Json,
+    Jsonl,
+    Xml,
+    Html,
+    Csv,
+    Xlsx,
+    Rss,
+}
+
+impl Default for Format {
+    fn default() -> Self {
+        Format::Json
+    }
+}
+
+impl std::fmt::Display for Format {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+        let string_repr = match self {
+            Format::Json => "json",
+            Format::Jsonl => "jsonl",
+            Format::Xml => "xml",
+            Format::Html => "html",
+            Format::Csv => "csv",
+            Format::Xlsx => "xlsx",
+            Format::Rss => "ss",
+        };
+        write!(f, "{}", string_repr)
+    }
+}
+
+#[derive(Default, QueryParams)]
+#[allow(non_snake_case)]
+struct GetItemsParams {
+    format: Format,
+    clean: Option<bool>,
+    offset: Option<u64>,
+    limit: Option<u64>,
+    // Just string so QueryParams work, we parse it ourselves
+    fields: Option<String>,
+    // Just string so QueryParams work, we parse it ourselves
+    omit: Option<String>,
+    unwind: Option<String>,
+    desc: Option<bool>, 
+    attachment: Option<bool>,
+    delimiter: Option<String>,
+    bom: Option<bool>,
+    xmlRoot: Option<String>,
+    xmlRow: Option<String>,
+    skipHeaderRow: Option<bool>,
+    skipHidden: Option<bool>, 
+    skipEmpty: Option<bool>, 
+    simplified: Option<bool>,
+    skipFailedPages: Option<bool>,
+}
+
+pub struct GetItemsBuilder<'a, T> {
+    client: &'a ApifyClient,
+    dataset_id_or_name_val: String,
+    options: GetItemsParams,
+    _phantom: PhantomData<T>,
+}
+
+pub struct GetItemsBuilderRaw<'a> {
+    client: &'a ApifyClient,
+    dataset_id_or_name_val: String,
+    options: GetItemsParams,
+}
+
+impl <'a, T: DeserializeOwned> GetItemsBuilder<'a, T> {
+    pub fn clean(& mut self, clean: bool) -> &'_ mut Self {
+        self.options.clean = Some(clean);
+        self
+    }
+    pub fn offset(& mut self, offset: u64) -> &'_ mut Self {
+        self.options.offset = Some(offset);
+        self
+    }
+    pub fn limit(& mut self, limit: u64) -> &'_ mut Self {
+        self.options.limit = Some(limit);
+        self
+    }
+    pub fn fields(& mut self, fields: Vec<String>) -> &'_ mut Self {
+        self.options.fields = Some(fields.join(","));
+        self
+    }
+    pub fn omit(& mut self, omit: Vec<String>) -> &'_ mut Self {
+        self.options.omit = Some(omit.join(","));
+        self
+    }
+    pub fn unwind(& mut self, unwind: String) -> &'_ mut Self {
+        self.options.unwind = Some(unwind);
+        self
+    }
+    pub fn desc(& mut self, desc: bool) -> &'_ mut Self {
+        self.options.desc = Some(desc);
+        self
+    }
+    pub fn attachment(& mut self, attachment: bool) -> &'_ mut Self {
+        self.options.attachment = Some(attachment);
+        self
+    }
+    pub fn delimiter(& mut self, delimiter: String) -> &'_ mut Self {
+        self.options.delimiter = Some(delimiter);
+        self
+    }
+    pub fn bom(& mut self, bom: bool) -> &'_ mut Self {
+        self.options.bom = Some(bom);
+        self
+    }
+    pub fn xml_root(& mut self, xml_root: String) -> &'_ mut Self {
+        self.options.xmlRoot = Some(xml_root);
+        self
+    }
+    pub fn xml_row(& mut self, xml_row: String) -> &'_ mut Self {
+        self.options.xmlRow = Some(xml_row);
+        self
+    }
+    pub fn skip_header_row(& mut self, skip_header_row: bool) -> &'_ mut Self {
+        self.options.skipHeaderRow = Some(skip_header_row);
+        self
+    }
+    pub fn skip_hidden(& mut self, skip_hidden: bool) -> &'_ mut Self {
+        self.options.skipHidden = Some(skip_hidden);
+        self
+    }
+    pub fn skip_empty(& mut self, skip_empty: bool) -> &'_ mut Self {
+        self.options.skipEmpty = Some(skip_empty);
+        self
+    }
+    pub fn simplified(& mut self, simplified: bool) -> &'_ mut Self {
+        self.options.simplified = Some(simplified);
+        self
+    }
+    pub fn skip_failed_pages(& mut self, skip_failed_pages: bool) -> &'_ mut Self {
+        self.options.skipFailedPages = Some(skip_failed_pages);
+        self
+    }
+
+    pub async fn send(&self) -> Result<PaginationList<T>, ApifyClientError> {
+        let mut query_string = self.options.to_query_params();
+        if query_string.is_empty() {
+            query_string = "?".to_string();
+        }
+        let url = format!("{}/datasets/{}/items{}", BASE_PATH, self.dataset_id_or_name_val, query_string);
+        let url_with_maybe_token = match &self.client.optional_token {
+            None => url,
+            Some(token) => format!("{}&token={}", &url, token)
+        };
+        let resp = self.client.retrying_request(&url_with_maybe_token, &reqwest::Method::GET, &None, &None).await;
+        match resp {
+            Err(err) => Err(err),
+            Ok(raw_data) => { 
+                // For this endpoint, we have to reconstruct PaginationList manually
+                let headers = raw_data.headers().clone();
+                let items: Vec<T> = raw_data.json().await.unwrap();
+
+                println!("{:?}", headers);
+                
+                let total: u64 = headers.get("X-Apify-Pagination-Total").unwrap().to_str().unwrap().parse().unwrap();
+                let limit: u64 = headers.get("X-Apify-Pagination-Limit").unwrap().to_str().unwrap().parse().unwrap();
+                let offset: u64 = headers.get("X-Apify-Pagination-Offset").unwrap().to_str().unwrap().parse().unwrap();
+                // Because x-apify-pagination-count returns invalid values when hidden/empty items are skipped
+                let count: u64 = items.len() as u64;
+                let pagination_list = PaginationList {
+                    total,
+                    limit: Some(limit),
+                    count,
+                    offset,
+                    desc: false,
+                    items,
+                };
+                return Ok(pagination_list);
+            }
+        }
+    }
+}
+
+// TODO: Dedup this code
+impl <'a> GetItemsBuilderRaw<'a> {
+    pub fn format(& mut self, format: Format) -> &'_ mut Self {
+        self.options.format = format;
+        self
+    }
+    pub fn clean(& mut self, clean: bool) -> &'_ mut Self {
+        self.options.clean = Some(clean);
+        self
+    }
+    pub fn offset(& mut self, offset: u64) -> &'_ mut Self {
+        self.options.offset = Some(offset);
+        self
+    }
+    pub fn limit(& mut self, limit: u64) -> &'_ mut Self {
+        self.options.limit = Some(limit);
+        self
+    }
+    pub fn fields(& mut self, fields: Vec<String>) -> &'_ mut Self {
+        self.options.fields = Some(fields.join(","));
+        self
+    }
+    pub fn omit(& mut self, omit: Vec<String>) -> &'_ mut Self {
+        self.options.omit = Some(omit.join(","));
+        self
+    }
+    pub fn unwind(& mut self, unwind: String) -> &'_ mut Self {
+        self.options.unwind = Some(unwind);
+        self
+    }
+    pub fn desc(& mut self, desc: bool) -> &'_ mut Self {
+        self.options.desc = Some(desc);
+        self
+    }
+    pub fn attachment(& mut self, attachment: bool) -> &'_ mut Self {
+        self.options.attachment = Some(attachment);
+        self
+    }
+    pub fn delimiter(& mut self, delimiter: String) -> &'_ mut Self {
+        self.options.delimiter = Some(delimiter);
+        self
+    }
+    pub fn bom(& mut self, bom: bool) -> &'_ mut Self {
+        self.options.bom = Some(bom);
+        self
+    }
+    pub fn xml_root(& mut self, xml_root: String) -> &'_ mut Self {
+        self.options.xmlRoot = Some(xml_root);
+        self
+    }
+    pub fn xml_row(& mut self, xml_row: String) -> &'_ mut Self {
+        self.options.xmlRow = Some(xml_row);
+        self
+    }
+    pub fn skip_header_row(& mut self, skip_header_row: bool) -> &'_ mut Self {
+        self.options.skipHeaderRow = Some(skip_header_row);
+        self
+    }
+    pub fn skip_hidden(& mut self, skip_hidden: bool) -> &'_ mut Self {
+        self.options.skipHidden = Some(skip_hidden);
+        self
+    }
+    pub fn skip_empty(& mut self, skip_empty: bool) -> &'_ mut Self {
+        self.options.skipEmpty = Some(skip_empty);
+        self
+    }
+    pub fn simplified(& mut self, simplified: bool) -> &'_ mut Self {
+        self.options.simplified = Some(simplified);
+        self
+    }
+    pub fn skip_failed_pages(& mut self, skip_failed_pages: bool) -> &'_ mut Self {
+        self.options.skipFailedPages = Some(skip_failed_pages);
+        self
+    }
+
+    pub async fn send(&self) -> Result<String, ApifyClientError> {
+        let mut query_string = self.options.to_query_params();
+        if query_string.is_empty() {
+            query_string = "?".to_string();
+        }
+        let url = format!("{}/datasets/{}/items{}", BASE_PATH, self.dataset_id_or_name_val, query_string);
+        let url_with_maybe_token = match &self.client.optional_token {
+            None => url,
+            Some(token) => format!("{}&token={}", &url, token)
+        };
+        let resp = self.client.retrying_request(&url_with_maybe_token, &reqwest::Method::GET, &None, &None).await;
+        match resp {
+            Err(err) => Err(err),
+            Ok(raw_data) => { 
+                let output = raw_data.text().await.unwrap();
+                return Ok(output);
+            }
+        }
+    }
+}
+
+#[derive(QueryParams, Default)]
 struct ListDatasetsParams {
     offset: Option<u32>,
     limit: Option<u32>,

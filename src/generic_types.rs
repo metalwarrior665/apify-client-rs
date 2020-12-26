@@ -11,13 +11,13 @@ impl NoContent {
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, PartialEq)]
 pub struct PaginationList<T> {
-    total: u32,
-    offset: u32,
-    limit: Option<u32>,
-    count: u32,
-    desc: bool,
+    pub total: u64,
+    pub offset: u64,
+    pub limit: Option<u64>,
+    pub count: u64,
+    pub desc: bool,
     pub items: Vec<T>
 }
 

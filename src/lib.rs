@@ -10,21 +10,29 @@ pub mod request;
 pub mod utils;
 pub mod generic_types;
 
-use crate::client::{ApifyClient, IdOrName, ApifyClientError};
-use crate::datasets::{Dataset};
-use crate::generic_types::{NoContent};
-
 // These are integration tests that call Apify APIs
 // They require an API token in test/test_token.txt file as plain string
+// TODO: Cleanup if tests crash in the middle
 #[cfg(test)]
 mod test {
-    use super::*;
+    use super::client::{ApifyClient, IdOrName, ApifyClientError};
+    use super::datasets::{Dataset};
+    use super::generic_types::{NoContent, PaginationList};
+    use serde::{Serialize, Deserialize};
 
     // Simple await macro for tests
     macro_rules! await_test {
         ($e:expr) => {
             tokio_test::block_on($e)
         };
+    }
+    #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+    struct Item {
+        field1: f64,
+        field2: f64,
+    }
+    fn get_test_items() -> Vec<Item> {
+        vec![Item { field1: 1., field2: 2. }, Item { field1: 3., field2: 4. }]
     }
 
     // You must have token in test/test_token.txt file as plain string
@@ -57,6 +65,22 @@ mod test {
     fn get_dataset (client: &ApifyClient, id_or_name: &IdOrName) -> Result<Dataset, ApifyClientError> {
         let maybe_dataset = await_test!(client.get_dataset(id_or_name).send());
         maybe_dataset
+    }
+
+    fn put_items (client: &ApifyClient, id_or_name: &IdOrName, items: Vec<Item>) -> Result<NoContent, ApifyClientError> {
+        let put_result = await_test!(client.put_items(id_or_name, &items).send());
+        put_result
+    }
+
+
+    fn get_items (client: &ApifyClient, id_or_name: &IdOrName) -> Result<PaginationList<Item>, ApifyClientError> {
+        let maybe_pagination_list = await_test!(client.get_items(id_or_name).send());
+        maybe_pagination_list
+    }
+
+    fn get_items_raw_csv (client: &ApifyClient, id_or_name: &IdOrName) -> Result<String, ApifyClientError> {
+        let maybe_string = await_test!(client.get_items_raw(id_or_name).format(crate::datasets::Format::Csv).send());
+        maybe_string
     }
 
     // This is done as one mega test to limit number of API calls when cleaning
@@ -108,21 +132,40 @@ mod test {
         assert!(maybe_pagination_list.unwrap().items.iter().find(|dataset| dataset.id == dataset_id).is_none());
     }
 
-    // TODO: Add get items into the test
+    // TODO: Test all formats and most params
     #[test] 
-    fn put_items () {
+    fn put_get_items_test () {
         let client = create_client();
         let name = "RUST-TEST-PUT-ITEMS";
 
         let dataset = create_dataset(&client, name);
         let dataset_id = dataset.id;
 
-        let item1 = serde_json::json!({ "obj": 1 });
-        let item2 = serde_json::json!({ "obj": 2 });
-        let v = vec![item1, item2];
-        let put_result = await_test!(client.put_items(&IdOrName::Id(dataset_id.clone()), &v).send());
+        let items = get_test_items();
+        let put_result = put_items(&client, &IdOrName::Id(dataset_id.clone()), items.clone());
         assert!(put_result.is_ok());
         assert_eq!(put_result.unwrap(), NoContent::new());
+
+        // We have to sleep so that numbers on Apify's side update propagate properly
+        std::thread::sleep(std::time::Duration::from_secs(10));
+
+        let maybe_pagination_list = get_items(&client, &IdOrName::Id(dataset_id.clone()));
+        assert!(maybe_pagination_list.is_ok());
+        let pagination_list = maybe_pagination_list.unwrap();
+        println!("{:?}", pagination_list);
+        let pagination_list_test = PaginationList{
+            total: 2,
+            offset: 0,
+            limit: Some(999999999999),
+            count: 2,
+            desc: false,
+            items: get_test_items(),
+        };
+        assert_eq!(pagination_list, pagination_list_test);
+
+        let maybe_string = get_items_raw_csv(&client, &IdOrName::Id(dataset_id.clone()));
+        assert!(maybe_string.is_ok());
+        println!("{}", maybe_string.unwrap());
 
         let no_content = delete_dataset(&client, &IdOrName::Id(dataset_id.clone()));
         assert_eq!(no_content, NoContent::new());

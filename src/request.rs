@@ -55,7 +55,7 @@ impl ApifyClient {
         headers: &Option<reqwest::header::HeaderMap>
     ) -> Result<reqwest::Response, ApifyClientError> {
         if self.debug_log {
-            println!("Doing request to: {}", url);
+            println!("Doing {} request to: {}", method, url);
         }
         let mut rate_limit_retry_count: u8 = 0;
         let mut server_failed_retry_count: u8 = 0;
