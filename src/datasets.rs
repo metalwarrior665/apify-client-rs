@@ -1,9 +1,11 @@
 use std::marker::PhantomData;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use crate::client::{ApifyClient, ApifyApiError, ApifyClientError, ApifyClientResult, IdOrName, BASE_PATH};
+use crate::client::{ApifyClient, ApifyApiError, ApifyClientError, ApifyClientResult, IdOrName};
 use crate::utils::{stringify_resource, json_content_headers, parse_pagination_header, is_resource_by_name};
 use crate::generic_types::{SimpleBuilder, PaginationList, NoContent};
+
+pub const BASE_URL: &str = "https://api.apify.com/v2/datasets";
 
 impl ApifyClient {
     /// List datasets of the provided account.
@@ -17,11 +19,7 @@ impl ApifyClient {
 
     /// Requires API token
     pub fn create_dataset(&self, dataset_name: &str) -> SimpleBuilder<'_, Dataset> {
-        let url = format!(
-            "{}/datasets?name={}",
-            BASE_PATH,
-            dataset_name,
-        );
+        let url = format!("{}?name={}", BASE_URL, dataset_name);
         SimpleBuilder {
             client: self,
             requires_token: true,
@@ -37,8 +35,7 @@ impl ApifyClient {
     /// If you provide dataset ID, you don't need a token
     /// If you provide username~datasetName, you need a token (otherwise it will return an Error)
     pub fn get_dataset(&self, dataset_id_or_name: &IdOrName) -> SimpleBuilder<'_, Dataset> {
-        let dataset_id_or_name_val = stringify_resource(dataset_id_or_name);
-        let url = format!("{}/datasets/{}?", BASE_PATH, dataset_id_or_name_val);
+        let url = format!("{}/{}?", BASE_URL, stringify_resource(dataset_id_or_name));
     
         SimpleBuilder {
             client: self,
@@ -53,12 +50,7 @@ impl ApifyClient {
 
     /// Requires API token
     pub fn update_dataset(&self, dataset_id_or_name: &IdOrName, new_dataset_name: &str) -> SimpleBuilder<'_, Dataset> {
-        let dataset_id_or_name_val = stringify_resource(dataset_id_or_name);
-        let url = format!(
-            "{}/datasets/{}?",
-            BASE_PATH,
-            dataset_id_or_name_val,
-        );
+        let url = format!("{}/{}?", BASE_URL, stringify_resource(dataset_id_or_name));
         let json_body = json!({
             "name": new_dataset_name
         });
@@ -76,12 +68,7 @@ impl ApifyClient {
 
     /// Requires API token
     pub fn delete_dataset(&self, dataset_id_or_name: &IdOrName) -> SimpleBuilder<'_, NoContent> {
-        let dataset_id_or_name_val = stringify_resource(dataset_id_or_name);
-        let url = format!(
-            "{}/datasets/{}?",
-            BASE_PATH,
-            dataset_id_or_name_val,
-        );
+        let url = format!("{}/{}?", BASE_URL, stringify_resource(dataset_id_or_name));
         SimpleBuilder {
             client: self,
             url,
@@ -99,11 +86,7 @@ impl ApifyClient {
     /// Requires API token.
     /// [API reference](https://docs.apify.com/api/v2#/reference/datasets/item-collection/put-items)
     pub fn put_items<T: Serialize>(&self, dataset_id_or_name: &IdOrName, items: &T) -> SimpleBuilder<'_, NoContent> {
-        let dataset_id_or_name_val = stringify_resource(dataset_id_or_name);
-        let url = format!(
-            "{}/datasets/{}/items?",
-            BASE_PATH, dataset_id_or_name_val,
-        );
+        let url = format!("{}/{}/items?", BASE_URL, stringify_resource(dataset_id_or_name));
         let wrapped_bytes = Some(serde_json::to_vec(items)).transpose();
         
         SimpleBuilder {
@@ -120,11 +103,10 @@ impl ApifyClient {
     /// Gets items from the dataset in JSON format and parses them into `PaginationList<T>`.
     /// If you need non-parsed String and/or different formats choose `get_items_raw` instead.
     /// [API reference](https://docs.apify.com/api/v2#/reference/datasets/item-collection/get-items).
-    pub fn get_items<'de, T: serde::de::DeserializeOwned>(&self, dataset_id_or_name: &IdOrName) -> GetItemsBuilder<'_, T> {
-        let dataset_id_or_name_val = stringify_resource(dataset_id_or_name,);
+    pub fn get_items<T: serde::de::DeserializeOwned>(&self, dataset_id_or_name: IdOrName) -> GetItemsBuilder<'_, T> {
         GetItemsBuilder {
             client: self,
-            dataset_id_or_name_val,
+            dataset_id_or_name,
             options: GetItemsParams::default(),
             _phantom: PhantomData,
         }
@@ -132,14 +114,24 @@ impl ApifyClient {
 
     /// Gets items from the dataset in any format and return them as `String` (no PaginationList). 
     /// [API reference](https://docs.apify.com/api/v2#/reference/datasets/item-collection/get-items).
-    pub fn get_items_raw(&self, dataset_id_or_name: &IdOrName) -> GetItemsBuilderRaw<'_> {
-        let dataset_id_or_name_val = stringify_resource(dataset_id_or_name);
+    pub fn get_items_raw(&self, dataset_id_or_name: IdOrName) -> GetItemsBuilderRaw<'_> {
         GetItemsBuilderRaw {
             client: self,
-            dataset_id_or_name_val,
+            dataset_id_or_name,
             options: GetItemsParams::default(),
         }
     }
+}
+
+fn get_items_prepare_url(client: &ApifyClient, dataset_id_or_name: &IdOrName, params: &GetItemsParams) -> Result<String, ApifyClientError> {
+    let url = format!("{}/{}/items?{}", BASE_URL, stringify_resource(&dataset_id_or_name), params.to_query_params());
+    let url = if is_resource_by_name(dataset_id_or_name) {
+        let token = client.optional_token.as_ref().ok_or(ApifyApiError::MissingToken)?;
+        format!("{}&token={}", &url, token)
+    } else {
+        url
+    };
+    Ok(url)
 }
 
 #[derive(Deserialize, Debug)]
@@ -216,14 +208,14 @@ struct GetItemsParams {
 
 pub struct GetItemsBuilder<'a, T> {
     client: &'a ApifyClient,
-    dataset_id_or_name_val: String,
+    dataset_id_or_name: IdOrName,
     options: GetItemsParams,
     _phantom: PhantomData<T>,
 }
 
 pub struct GetItemsBuilderRaw<'a> {
     client: &'a ApifyClient,
-    dataset_id_or_name_val: String,
+    dataset_id_or_name: IdOrName,
     options: GetItemsParams,
 }
 
@@ -298,19 +290,10 @@ impl <'a, T: DeserializeOwned> GetItemsBuilder<'a, T> {
     }
 
     pub async fn send(&self) -> Result<PaginationList<T>, ApifyClientError> {
-        let mut query_string = self.options.to_query_params();
-        if query_string.is_empty() {
-            query_string = "?".to_string();
-        }
-        let url = format!("{}/datasets/{}/items{}", BASE_PATH, self.dataset_id_or_name_val, query_string);
-        let url_with_maybe_token = match &self.client.optional_token {
-            None => url,
-            Some(token) => format!("{}&token={}", &url, token)
-        };
-        let resp = self.client.retrying_request(&url_with_maybe_token, &reqwest::Method::GET, &None, &None).await?;
+        let url = get_items_prepare_url(self.client, &self.dataset_id_or_name, &self.options)?;
+        let resp = self.client.retrying_request(&url, &reqwest::Method::GET, &None, &None).await?;
         // For this endpoint, we have to reconstruct PaginationList manually
         let headers = resp.headers().clone();
-        // TODO: Handle this error, originates in Hyper, not sure when it can ever fail
         let bytes = resp.bytes().await.map_err(
             |err| ApifyApiError::ApiFailure(format!("Apify API did not return bytes. Something is very wrong. Please contact support@apify.com\n{}", err))
         )?;
@@ -411,16 +394,8 @@ impl <'a> GetItemsBuilderRaw<'a> {
     }
 
     pub async fn send(&self) -> Result<String, ApifyClientError> {
-        let mut query_string = self.options.to_query_params();
-        if query_string.is_empty() {
-            query_string = "?".to_string();
-        }
-        let url = format!("{}/datasets/{}/items{}", BASE_PATH, self.dataset_id_or_name_val, query_string);
-        let url_with_maybe_token = match &self.client.optional_token {
-            None => url,
-            Some(token) => format!("{}&token={}", &url, token)
-        };
-        let resp = self.client.retrying_request(&url_with_maybe_token, &reqwest::Method::GET, &None, &None).await?;
+        let url = get_items_prepare_url(self.client, &self.dataset_id_or_name, &self.options)?;
+        let resp = self.client.retrying_request(&url, &reqwest::Method::GET, &None, &None).await?;
         
         let output = resp.text().await.map_err(
             |err| ApifyApiError::ApiFailure(format!("Apify API did not return valid UTF-8. Something is very wrong. Please contact support@apify.com\n{}", err))
@@ -461,13 +436,10 @@ impl <'a> ListDatasetsBuilder<'a> {
     }
 
     pub async fn send(&self) -> Result<PaginationList<Dataset>, ApifyClientError> {
-        let mut query_string = self.options.to_query_params();
-        if query_string.is_empty() {
-            query_string = "?".to_string();
-        }
+        let query_string = self.options.to_query_params();
         let url = format!(
-            "{}/datasets{}&token={}",
-            BASE_PATH,
+            "{}?{}&token={}",
+            BASE_URL,
             query_string,
             self.client.optional_token.as_ref().ok_or(ApifyApiError::MissingToken)?
         );

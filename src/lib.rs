@@ -73,12 +73,12 @@ mod test {
     }
 
 
-    fn get_items (client: &ApifyClient, id_or_name: &IdOrName) -> Result<PaginationList<Item>, ApifyClientError> {
+    fn get_items (client: &ApifyClient, id_or_name: IdOrName) -> Result<PaginationList<Item>, ApifyClientError> {
         let maybe_pagination_list = await_test!(client.get_items(id_or_name).send());
         maybe_pagination_list
     }
 
-    fn get_items_raw_csv (client: &ApifyClient, id_or_name: &IdOrName) -> Result<String, ApifyClientError> {
+    fn get_items_raw_csv (client: &ApifyClient, id_or_name: IdOrName) -> Result<String, ApifyClientError> {
         let maybe_string = await_test!(client.get_items_raw(id_or_name).format(crate::datasets::Format::Csv).send());
         maybe_string
     }
@@ -153,7 +153,7 @@ mod test {
         // We have to sleep so that numbers on Apify's side update propagate properly
         std::thread::sleep(std::time::Duration::from_secs(10));
 
-        let maybe_pagination_list = get_items(&client, &IdOrName::Id(dataset_id.clone()));
+        let maybe_pagination_list = get_items(&client, IdOrName::Id(dataset_id.clone()));
         assert!(maybe_pagination_list.is_ok());
         let pagination_list = maybe_pagination_list.unwrap();
         println!("{:?}", pagination_list);
@@ -167,7 +167,7 @@ mod test {
         };
         assert_eq!(pagination_list, pagination_list_test);
 
-        let maybe_string = get_items_raw_csv(&client, &IdOrName::Id(dataset_id.clone()));
+        let maybe_string = get_items_raw_csv(&client, IdOrName::Id(dataset_id.clone()));
         assert!(maybe_string.is_ok());
         println!("{}", maybe_string.unwrap());
 

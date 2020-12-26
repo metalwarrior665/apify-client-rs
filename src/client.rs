@@ -3,8 +3,6 @@ use serde::Deserialize;
 
 use std::fmt::{Display, Formatter};
 
-pub const BASE_PATH: &str = "https://api.apify.com/v2";
-
 pub struct ResourceName {
     pub user_name_or_user_id: String,
     pub resource_name: String
