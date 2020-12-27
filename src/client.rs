@@ -87,9 +87,6 @@ impl ApifyClient {
     /// Some read operations require token, some have optional token and some don't
     /// Using a method that requires token without a token in a client will result in Error
     pub fn new (optional_token: Option<String>) -> ApifyClient {
-        if let Some(token) = &optional_token {
-            assert_eq!(token.len(), 25);
-        }
         let http_client = reqwest::Client::new();
         ApifyClient {
             optional_token,
