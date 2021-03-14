@@ -1,5 +1,5 @@
 use crate::client::{ApifyClient, ApifyApiError};
-use tokio::time::delay_for;
+use tokio::time::sleep;
 use std::time::Duration;
 use serde::{Deserialize};
 
@@ -92,7 +92,7 @@ impl ApifyClient {
                             }
                         }
                         
-                        delay_for(Duration::from_millis(time_to_next_retry.into())).await;
+                        sleep(Duration::from_millis(time_to_next_retry.into())).await;
                         continue;
                     } else if status_code >= 300 {
                         let raw_error: ApifyApiErrorRawWrapper = resp.json().await.map_err(
@@ -116,7 +116,7 @@ impl ApifyClient {
                         if self.debug_log {
                             println!("Request timeouted, retry n. will happen {} in: {} ms", rate_limit_retry_count, time_to_next_retry);
                         }
-                        delay_for(Duration::from_millis(time_to_next_retry.into())).await;
+                        sleep(Duration::from_millis(time_to_next_retry.into())).await;
                         continue;
                     }
                     // Maybe other types here
