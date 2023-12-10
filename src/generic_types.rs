@@ -72,17 +72,40 @@ impl<'a> SimpleBuilder<'a, NoContent> {
 }
 
 pub struct BaseBuilder <'a, T> {
-    pub client: &'a ApifyClient,
-    pub url_segment: String,
-    pub identifier: String,
-    pub method: reqwest::Method,
+    client: &'a ApifyClient,
+    url_segment: String,
+    identifier: String,
+    method: reqwest::Method,
     // This is a bit weird, the parsing happens at the caller site and only Result is passed into send
-    pub body: Result<Option<Vec<u8>>, serde_json::error::Error>,
-    pub phantom: PhantomData<T>,
+    body: Result<Option<Vec<u8>>, serde_json::error::Error>,
+    query_string: Option<String>,
+    phantom: PhantomData<T>,
 }
 
 // Base internal send for both Deserializable and NoContent
 impl <'a, T> BaseBuilder<'a, T> {
+    pub fn new(client: &'a ApifyClient, url_segment: String, identifier: String, method: reqwest::Method) -> Self {
+        BaseBuilder {
+            client,
+            url_segment,
+            identifier,
+            method,
+            body: Ok(None),
+            query_string: None,
+            phantom: PhantomData,
+        }
+    }
+
+    pub fn body(& mut self, body: Result<Option<Vec<u8>>, serde_json::error::Error>) -> &'_ mut Self {
+        self.body = body;
+        self
+    }
+
+    pub fn query_string(& mut self, query_string: String) -> &'_ mut Self {
+        self.query_string = Some(query_string);
+        self
+    }
+
     async fn validate_and_send_request(self) -> Result<Response, ApifyClientError> {
         let id_or_name = IdOrName::new(&self.identifier)?;
 
@@ -98,7 +121,10 @@ impl <'a, T> BaseBuilder<'a, T> {
         if requires_token && self.client.optional_token.is_none() {
             return Err(ClientValidationError::MissingToken.into());
         }
-        let url = format!("{}/{}/{}", self.client.base_url, self.url_segment, id_or_name.to_string());
+        let mut url = format!("{}/{}/{}", self.client.base_url, self.url_segment, id_or_name.to_string());
+        if let Some(query_string) = self.query_string {
+            url = format!("{}?{}", url, query_string);
+        }
         // println!("size of: {}", std::mem::size_of::<T>());
         let body = self.body?;
         let resp = self.client.retrying_request(&url, &self.method, &body, &Some(HeaderMap::new())).await?;

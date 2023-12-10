@@ -11,6 +11,7 @@ pub mod generic_types;
 pub mod error;
 pub mod resource_clients;
 pub mod base_clients;
+pub mod builders;
 
 
 // These are integration tests that call Apify APIs
@@ -92,6 +93,11 @@ mod test {
     fn get_run (client: &ApifyClient, id_or_name: &str) -> Result<Run, ApifyClientError> {
         let maybe_run = await_test!(client.run(id_or_name).get().send());
         maybe_run
+    }
+
+    fn get_dataset_new (client: &ApifyClient, id_or_name: &str) -> Result<super::resource_clients::dataset::Dataset, ApifyClientError> {
+        let maybe_dataset = await_test!(client.dataset(id_or_name).get().send());
+        maybe_dataset
     }
 
     // This is done as one mega test to limit number of API calls when cleaning

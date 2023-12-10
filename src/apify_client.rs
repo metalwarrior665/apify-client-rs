@@ -1,7 +1,7 @@
 use reqwest;
 use serde::Deserialize;
 
-use crate::resource_clients::run::{RunClient};
+use crate::resource_clients::{run::{RunClient}, dataset::DatasetClient};
 
 pub struct ApifyClient {
     // The token is optional
@@ -35,6 +35,10 @@ impl ApifyClient {
 
     pub fn run (&self, id_or_name: &str) -> RunClient {
         RunClient::new(self, id_or_name)
+    }
+
+    pub fn dataset (&self, id_or_name: &str) -> DatasetClient {
+        DatasetClient::new(self, id_or_name)
     }
 
     /// Sets a token on the client

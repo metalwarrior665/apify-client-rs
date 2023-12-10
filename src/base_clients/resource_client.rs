@@ -12,35 +12,31 @@ pub trait ResourceClient<'a, T> {
     fn get_identifier(&self) -> &str;
 
     fn get(&self) -> BaseBuilder<'a, T> {
-        BaseBuilder {
-            client: self.get_client(),
-            url_segment: self.get_url_segment().to_owned(),
-            identifier: self.get_identifier().to_owned(),
-            method: reqwest::Method::GET,
-            body: Ok(None),
-            phantom: PhantomData
-        }
+        BaseBuilder::new(
+            self.get_client(),
+            self.get_url_segment().to_owned(),
+            self.get_identifier().to_owned(), 
+            reqwest::Method::GET
+        )
     }
 
     fn update(&self, body:  Result<Option<Vec<u8>>, serde_json::Error>) -> BaseBuilder<'a, T> {
-        BaseBuilder {
-            client: self.get_client(),
-            url_segment: self.get_url_segment().to_owned(),
-            identifier: self.get_identifier().to_owned(),
-            method: reqwest::Method::PUT,
-            body,
-            phantom: PhantomData
-        }
+        let mut builder = BaseBuilder::new(
+            self.get_client(),
+            self.get_url_segment().to_owned(),
+            self.get_identifier().to_owned(),
+            reqwest::Method::PUT,
+        );
+        builder.body(body);
+        builder
     }
 
     fn delete(&self) -> BaseBuilder<'a, NoContent> {
-        BaseBuilder {
-            client: self.get_client(),
-            url_segment: self.get_url_segment().to_owned(),
-            identifier: self.get_identifier().to_owned(),
-            method: reqwest::Method::DELETE,
-            body: Ok(None),
-            phantom: PhantomData
-        }
+        BaseBuilder::new(
+            self.get_client(),
+            self.get_url_segment().to_owned(),
+            self.get_identifier().to_owned(),
+            reqwest::Method::DELETE,
+        )
     }
 }
