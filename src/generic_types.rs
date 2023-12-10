@@ -77,7 +77,7 @@ pub struct BaseBuilder <'a, T> {
     identifier: String,
     method: reqwest::Method,
     // This is a bit weird, the parsing happens at the caller site and only Result is passed into send
-    body: Result<Option<Vec<u8>>, serde_json::error::Error>,
+    body: Option<Vec<u8>>,
     query_string: Option<String>,
     phantom: PhantomData<T>,
 }
@@ -90,14 +90,20 @@ impl <'a, T> BaseBuilder<'a, T> {
             url_segment,
             identifier,
             method,
-            body: Ok(None),
+            body: None,
             query_string: None,
             phantom: PhantomData,
         }
     }
 
-    pub fn body(& mut self, body: Result<Option<Vec<u8>>, serde_json::error::Error>) -> &'_ mut Self {
-        self.body = body;
+    // TODO: We proably don't want to parse during the builder so this is temporary
+    pub fn json<J: serde::Serialize>(& mut self, payload_type: &J) -> Result<&'_ mut Self, serde_json::error::Error> {
+        self.body = Some(serde_json::to_vec(payload_type)?);
+        Ok(self)
+    }
+
+    pub fn raw_payload(& mut self, payload: Vec<u8>) -> &'_ mut Self {
+        self.body = Some(payload);
         self
     }
 
@@ -126,7 +132,7 @@ impl <'a, T> BaseBuilder<'a, T> {
             url = format!("{}?{}", url, query_string);
         }
         // println!("size of: {}", std::mem::size_of::<T>());
-        let body = self.body?;
+        let body = self.body;
         let resp = self.client.retrying_request(&url, &self.method, &body, &Some(HeaderMap::new())).await?;
         Ok(resp)
     }

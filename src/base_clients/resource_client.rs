@@ -20,7 +20,8 @@ pub trait ResourceClient<'a, T> {
         )
     }
 
-    fn update(&self, body:  Result<Option<Vec<u8>>, serde_json::Error>) -> BaseBuilder<'a, T> {
+    /* Update is actually quite rare
+    fn update<J: serde::Serialize>(&self, body: T) -> BaseBuilder<'a, T> {
         let mut builder = BaseBuilder::new(
             self.get_client(),
             self.get_url_segment().to_owned(),
@@ -30,6 +31,7 @@ pub trait ResourceClient<'a, T> {
         builder.body(body);
         builder
     }
+    */
 
     fn delete(&self) -> BaseBuilder<'a, NoContent> {
         BaseBuilder::new(

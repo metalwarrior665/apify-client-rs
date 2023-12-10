@@ -89,7 +89,6 @@ impl ApifyClient {
     pub fn put_items<T: Serialize>(&self, dataset_id_or_name: &IdOrName, items: &T) -> SimpleBuilder<'_, NoContent> {
         let url = format!("{}/{}/items?", BASE_URL, stringify_resource(dataset_id_or_name));
         let wrapped_bytes = Some(serde_json::to_vec(items)).transpose();
-        
         SimpleBuilder {
             client: self,
             url,
