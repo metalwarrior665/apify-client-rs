@@ -1,5 +1,6 @@
-use crate::client::{ ApifyApiError, IdOrName };
+use crate::error::{ ApifyApiError };
 use reqwest::header::{HeaderMap, CONTENT_TYPE};
+use crate::generic_types::{IdOrName};
 
 #[derive(Debug)]
 pub enum ResourceType {

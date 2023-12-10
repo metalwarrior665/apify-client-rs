@@ -1,9 +1,10 @@
 use std::marker::PhantomData;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use crate::client::{ApifyClient, ApifyApiError, ApifyClientError, ApifyClientResult, IdOrName};
+use crate::apify_client::{ApifyClient, ApifyClientOutput};
+use crate::error::{ApifyApiError, ApifyClientError};
 use crate::utils::{stringify_resource, json_content_headers, parse_pagination_header, is_resource_by_name};
-use crate::generic_types::{SimpleBuilder, PaginationList, NoContent};
+use crate::generic_types::{SimpleBuilder, PaginationList, NoContent, IdOrName};
 
 pub const BASE_URL: &str = "https://api.apify.com/v2/datasets";
 
@@ -448,7 +449,7 @@ impl <'a> ListDatasetsBuilder<'a> {
             |err| ApifyApiError::ApiFailure(format!("Apify API did not return bytes. Something is very wrong. Please contact support@apify.com\n{}", err))
         )?;
 
-        let apify_client_result: ApifyClientResult<PaginationList<Dataset>> = serde_json::from_slice(&bytes)?;
+        let apify_client_result: ApifyClientOutput<PaginationList<Dataset>> = serde_json::from_slice(&bytes)?;
         return Ok(apify_client_result.data);
     }
 }

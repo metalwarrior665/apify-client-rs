@@ -3,22 +3,28 @@ extern crate query_params;
 #[macro_use]
 extern crate serde_json;
 
-pub mod client;
-pub mod key_value_stores;
+pub mod apify_client;
 pub mod datasets;
-pub mod request;
+pub mod http_request;
 pub mod utils;
 pub mod generic_types;
+pub mod error;
+pub mod resource_clients;
+pub mod base_clients;
+
 
 // These are integration tests that call Apify APIs
 // They require an API token in test/test_token.txt file as plain string
 // TODO: Cleanup if tests crash in the middle
 #[cfg(test)]
 mod test {
-    use super::client::{ApifyClient, IdOrName, ApifyApiError, ApifyClientError};
-    use super::datasets::{Dataset};
-    use super::generic_types::{NoContent, PaginationList};
+    use super::apify_client::ApifyClient;
+    use super::error::{ApifyApiError, ApifyClientError};
+    use super::datasets::Dataset;
+    use super::generic_types::{NoContent, PaginationList, IdOrName};
     use serde::{Serialize, Deserialize};
+    use super::resource_clients::run::Run;
+    use super::base_clients::resource_client::ResourceClient;
 
     // Simple await macro for tests
     macro_rules! await_test {
@@ -81,6 +87,11 @@ mod test {
     fn get_items_raw_csv (client: &ApifyClient, id_or_name: IdOrName) -> Result<String, ApifyClientError> {
         let maybe_string = await_test!(client.get_items_raw(id_or_name).format(crate::datasets::Format::Csv).send());
         maybe_string
+    }
+
+    fn get_run (client: &ApifyClient, id_or_name: &str) -> Result<Run, ApifyClientError> {
+        let maybe_run = await_test!(client.run(id_or_name).get().send());
+        maybe_run
     }
 
     // This is done as one mega test to limit number of API calls when cleaning
@@ -147,6 +158,7 @@ mod test {
 
         let items = get_test_items();
         let put_result = put_items(&client, &IdOrName::Id(dataset_id.clone()), items.clone());
+        println!("{:?}", put_result);
         assert!(put_result.is_ok());
         assert_eq!(put_result.unwrap(), NoContent::new());
 
@@ -165,13 +177,27 @@ mod test {
             desc: false,
             items: get_test_items(),
         };
-        assert_eq!(pagination_list, pagination_list_test);
 
         let maybe_string = get_items_raw_csv(&client, IdOrName::Id(dataset_id.clone()));
+        
+        let no_content = delete_dataset(&client, &IdOrName::Id(dataset_id.clone()));
+
+        assert_eq!(pagination_list, pagination_list_test);
+        // We need to assert here so that we delete the dataset
         assert!(maybe_string.is_ok());
         println!("{}", maybe_string.unwrap());
 
-        let no_content = delete_dataset(&client, &IdOrName::Id(dataset_id.clone()));
         assert_eq!(no_content, NoContent::new());
+    }
+
+    #[test]
+    fn get_run_test () {
+        let client = create_client();
+        // TODO: unhardcode the ID 
+        let maybe_run = get_run(&client, "D7mahEK1QsWkUJ1Py");
+        println!("maybe run {:?}", maybe_run);
+        assert!(maybe_run.is_ok());
+        let run = maybe_run.unwrap();
+        assert_eq!(run.meta.origin, "DEVELOPMENT");
     }
 }

@@ -1,4 +1,5 @@
-use crate::client::{ApifyClient, ApifyApiError};
+use crate::apify_client::{ApifyClient};
+use crate::error::ApifyApiError;
 use tokio::time::sleep;
 use std::time::Duration;
 use serde::{Deserialize};
@@ -44,6 +45,11 @@ impl ApifyClient {
         }
         if let Some(headers) = headers.clone() {
             req_builder = req_builder.headers(headers);
+        }
+
+        // Requirement for token is validated by the builder before send
+        if let Some(token) = self.optional_token.clone() {
+            req_builder = req_builder.header("Authorization", format!("Bearer {}", token));
         }
         req_builder.send().await
     }
