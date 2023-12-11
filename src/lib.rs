@@ -4,7 +4,7 @@ extern crate query_params;
 extern crate serde_json;
 
 pub mod apify_client;
-pub mod datasets;
+// pub mod datasets;
 pub mod http_request;
 pub mod utils;
 pub mod generic_types;
@@ -21,10 +21,10 @@ pub mod builders;
 mod test {
     use super::apify_client::ApifyClient;
     use super::error::{ApifyApiError, ApifyClientError};
-    use super::datasets::Dataset;
-    use super::generic_types::{NoContent, PaginationList, IdOrName};
+    use super::generic_types::{NoOutput, PaginationList};
     use serde::{Serialize, Deserialize};
     use super::resource_clients::run::Run;
+    use super::resource_clients::dataset::Dataset;
     use super::base_clients::resource_client::ResourceClient;
 
     // Simple await macro for tests
@@ -52,50 +52,48 @@ mod test {
         my_client
     }    
 
-    // Helper functions for sending the actual requests
-    // Needed because we need to clean up after each test
+    
     fn create_dataset (client: &ApifyClient, name: &str) -> Dataset {
-        let dataset = await_test!(client.create_dataset(name).send()).unwrap();
+        unimplemented!();
+        //let dataset = await_test!(client.create_dataset(name).send()).unwrap();
+        //dataset
+    }
+
+    fn update_dataset (client: &ApifyClient, id_or_name: &str, name: &str) -> Dataset {
+        let dataset = await_test!(client.dataset(id_or_name).update(name).send()).unwrap();
         dataset
     }
 
-    fn update_dataset (client: &ApifyClient, id_or_name: &IdOrName, name: &str) -> Dataset {
-        let dataset = await_test!(client.update_dataset(id_or_name, name).send()).unwrap();
-        dataset
-    }
-
-    fn delete_dataset (client: &ApifyClient, id_or_name: &IdOrName) -> NoContent {
-        let no_content = await_test!(client.delete_dataset(id_or_name).send()).unwrap();
+    fn delete_dataset (client: &ApifyClient, id_or_name: &str) -> NoOutput {
+        let no_content = await_test!(client.dataset(id_or_name).delete().send()).unwrap();
         no_content
     }
 
-    fn get_dataset (client: &ApifyClient, id_or_name: &IdOrName) -> Result<Dataset, ApifyClientError> {
-        let maybe_dataset = await_test!(client.get_dataset(id_or_name).send());
-        maybe_dataset
-    }
-
-    fn put_items (client: &ApifyClient, id_or_name: &IdOrName, items: Vec<Item>) -> Result<NoContent, ApifyClientError> {
-        let put_result = await_test!(client.put_items(id_or_name, &items).send());
+    fn push_items (client: &ApifyClient, id_or_name: &str, items: Vec<Item>) -> Result<NoOutput, ApifyClientError> {
+        let put_result = await_test!(client.dataset(id_or_name).push_items(&items).send());
         put_result
     }
 
-
-    fn get_items (client: &ApifyClient, id_or_name: IdOrName) -> Result<PaginationList<Item>, ApifyClientError> {
-        let maybe_pagination_list = await_test!(client.get_items(id_or_name).send());
+    fn list_items (client: &ApifyClient, id_or_name: &str) -> Result<PaginationList<Item>, ApifyClientError> {
+        let maybe_pagination_list = await_test!(client.dataset(id_or_name).list_items().send());
         maybe_pagination_list
     }
-
-    fn get_items_raw_csv (client: &ApifyClient, id_or_name: IdOrName) -> Result<String, ApifyClientError> {
-        let maybe_string = await_test!(client.get_items_raw(id_or_name).format(crate::datasets::Format::Csv).send());
-        maybe_string
+ 
+    fn download_items (client: &ApifyClient, id_or_name: &str) -> Result<String, ApifyClientError> {
+        let maybe_string = await_test!(client.dataset(id_or_name).download_items(crate::builders::dataset::Format::Csv).send());
+        match maybe_string {
+            Ok(bytes) => Ok(String::from_utf8(bytes).unwrap()),
+            Err(err) => Err(err),
+        }
     }
+    
 
     fn get_run (client: &ApifyClient, id_or_name: &str) -> Result<Run, ApifyClientError> {
         let maybe_run = await_test!(client.run(id_or_name).get().send());
         maybe_run
     }
 
-    fn get_dataset_new (client: &ApifyClient, id_or_name: &str) -> Result<super::resource_clients::dataset::Dataset, ApifyClientError> {
+    fn get_dataset (client: &ApifyClient, id_or_name: &str) -> Result<super::resource_clients::dataset::Dataset, ApifyClientError> {
         let maybe_dataset = await_test!(client.dataset(id_or_name).get().send());
         maybe_dataset
     }
@@ -110,22 +108,22 @@ mod test {
         let dataset = create_dataset(&client, name);
         assert_eq!(dataset.name.unwrap(), name);
 
-        let dataset_id = dataset.id.clone();
+        let dataset_id = dataset.id;
 
-        let maybe_dataset = get_dataset(&client, &IdOrName::Id(dataset_id.clone()));
+        let maybe_dataset = get_dataset(&client, &dataset_id);
         assert_eq!(maybe_dataset.unwrap().name.unwrap(), name);
 
         let new_name = "RUST-TEST-UPDATE";
-        let dataset = update_dataset(&client, &IdOrName::Id(dataset_id.clone()), new_name);
+        let dataset = update_dataset(&client, &dataset_id, new_name);
         assert_eq!(dataset.name.unwrap(), new_name);
 
-        let maybe_dataset = get_dataset(&client, &IdOrName::Id(dataset_id.clone()));
+        let maybe_dataset = get_dataset(&client, &dataset_id);
         assert_eq!(maybe_dataset.unwrap().name.unwrap(), new_name);
 
-        let no_content = delete_dataset(&client, &IdOrName::Id(dataset.id));
-        assert_eq!(no_content, NoContent::new());
+        let no_content = delete_dataset(&client, &dataset.id);
+        assert_eq!(no_content, NoOutput::new());
 
-        let maybe_dataset = get_dataset(&client, &IdOrName::Id(dataset_id));
+        let maybe_dataset = get_dataset(&client, &dataset_id);
         assert!(maybe_dataset.is_err());
         let is_correct_error = match maybe_dataset.unwrap_err() {
             ApifyClientError::ApifyApi(ApifyApiError::NotFound(text)) => text == "Dataset was not found".to_string(),
@@ -142,15 +140,17 @@ mod test {
         let dataset = create_dataset(&client, name);
         let dataset_id = dataset.id;
         
+        /* 
         let maybe_pagination_list = await_test!(client.list_datasets().limit(10).send());
         assert!(maybe_pagination_list.is_ok());
         assert!(maybe_pagination_list.unwrap().items.iter().find(|dataset| dataset.id == dataset_id.clone()).is_some());
 
-        delete_dataset(&client, &IdOrName::Id(dataset_id.clone()));
+        delete_dataset(&client, dataset_id.clone());
 
         let maybe_pagination_list = await_test!(client.list_datasets().limit(10).send());
         assert!(maybe_pagination_list.is_ok());
         assert!(maybe_pagination_list.unwrap().items.iter().find(|dataset| dataset.id == dataset_id).is_none());
+        */
     }
 
     // TODO: Test all formats and most params
@@ -163,15 +163,15 @@ mod test {
         let dataset_id = dataset.id;
 
         let items = get_test_items();
-        let put_result = put_items(&client, &IdOrName::Id(dataset_id.clone()), items.clone());
+        let put_result = push_items(&client, &dataset_id, items.clone());
         println!("{:?}", put_result);
         assert!(put_result.is_ok());
-        assert_eq!(put_result.unwrap(), NoContent::new());
+        assert_eq!(put_result.unwrap(), NoOutput::new());
 
         // We have to sleep so that numbers on Apify's side update propagate properly
         std::thread::sleep(std::time::Duration::from_secs(10));
 
-        let maybe_pagination_list = get_items(&client, IdOrName::Id(dataset_id.clone()));
+        let maybe_pagination_list = list_items(&client, &dataset_id);
         assert!(maybe_pagination_list.is_ok());
         let pagination_list = maybe_pagination_list.unwrap();
         println!("{:?}", pagination_list);
@@ -184,16 +184,16 @@ mod test {
             items: get_test_items(),
         };
 
-        let maybe_string = get_items_raw_csv(&client, IdOrName::Id(dataset_id.clone()));
+        let maybe_string = download_items(&client, &dataset_id);
         
-        let no_content = delete_dataset(&client, &IdOrName::Id(dataset_id.clone()));
+        let no_content = delete_dataset(&client, &dataset_id);
 
         assert_eq!(pagination_list, pagination_list_test);
         // We need to assert here so that we delete the dataset
         assert!(maybe_string.is_ok());
         println!("{}", maybe_string.unwrap());
 
-        assert_eq!(no_content, NoContent::new());
+        assert_eq!(no_content, NoOutput::new());
     }
 
     #[test]

@@ -1,5 +1,4 @@
-use crate::generic_types::{BaseBuilder, NoContent};
-use std::marker::PhantomData;
+use crate::generic_types::{BaseBuilder, NoOutput};
 use crate::apify_client::ApifyClient;
 
 // NOTE: Would be cool if we could use traits as lightweight inheritance by forcing the implementer
@@ -9,35 +8,19 @@ use crate::apify_client::ApifyClient;
 pub trait ResourceClient<'a, T> {
     fn get_client(&self) -> &'a ApifyClient;
     fn get_url_segment(&self) -> &str;
-    fn get_identifier(&self) -> &str;
 
     fn get(&self) -> BaseBuilder<'a, T> {
         BaseBuilder::new(
             self.get_client(),
             self.get_url_segment().to_owned(),
-            self.get_identifier().to_owned(), 
             reqwest::Method::GET
         )
     }
 
-    /* Update is actually quite rare
-    fn update<J: serde::Serialize>(&self, body: T) -> BaseBuilder<'a, T> {
-        let mut builder = BaseBuilder::new(
-            self.get_client(),
-            self.get_url_segment().to_owned(),
-            self.get_identifier().to_owned(),
-            reqwest::Method::PUT,
-        );
-        builder.body(body);
-        builder
-    }
-    */
-
-    fn delete(&self) -> BaseBuilder<'a, NoContent> {
+    fn delete(&self) -> BaseBuilder<'a, NoOutput> {
         BaseBuilder::new(
             self.get_client(),
             self.get_url_segment().to_owned(),
-            self.get_identifier().to_owned(),
             reqwest::Method::DELETE,
         )
     }

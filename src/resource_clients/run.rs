@@ -5,7 +5,6 @@ use crate::base_clients::resource_client::ResourceClient;
 pub struct RunClient<'a> {
     apify_client: &'a ApifyClient,
     url_segment: String,
-    identifier: String,
 }
 
 // See comment on the ResourceClient trait why this boilerplate is needed
@@ -17,18 +16,13 @@ impl <'a> ResourceClient<'a, Run> for RunClient<'a> {
     fn get_url_segment(&self) -> &str {
         &self.url_segment
     }
-
-    fn get_identifier(&self) -> &str {
-        &self.identifier
-    }
 }
 
 impl <'a> RunClient<'a> {
     pub fn new(apify_client: &'a ApifyClient, identifier: &str) -> Self {
         RunClient {
             apify_client,
-            url_segment: "actor-runs".to_owned(),
-            identifier: identifier.to_owned(),
+            url_segment: format!("actor-runs/{}", identifier),
         }
     }
 }

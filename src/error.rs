@@ -29,7 +29,8 @@ impl std::error::Error for ApifyApiError {}
 /// Validation errors before sending the API call
 #[derive(Debug, PartialEq)]
 pub enum ClientValidationError {
-    MissingToken,
+    // Too annoying to check
+    // MissingToken,
     InvalidResourceIdOrName(String),
 }
 
@@ -48,6 +49,7 @@ impl std::error::Error for ClientValidationError {}
 pub enum ApifyClientError {
     ApifyApi(ApifyApiError),
     Parse(serde_json::error::Error),
+    Http(reqwest::Error),
     ClientValidation(ClientValidationError),
 }
 
@@ -57,6 +59,7 @@ impl Display for ApifyClientError {
             ApifyClientError::ApifyApi(apify_api_error) => write!(f, "{}", apify_api_error),
             ApifyClientError::ClientValidation(client_validation_error) => write!(f, "{}", client_validation_error),
             ApifyClientError::Parse(parse_error) => write!(f, "JSON parsing failed, please fix your (de)serialization {}", parse_error),
+            ApifyClientError::Http(http_error) => write!(f, "HTTP request or response failed {}", http_error),
         }
     }
 }
@@ -66,6 +69,12 @@ impl std::error::Error for ApifyClientError {}
 impl From<serde_json::error::Error> for ApifyClientError {
     fn from(e: serde_json::error::Error) -> Self {
         ApifyClientError::Parse(e)
+    }
+}
+
+impl From<reqwest::Error> for ApifyClientError {
+    fn from(e: reqwest::Error) -> Self {
+        ApifyClientError::Http(e)
     }
 }
 

@@ -1,7 +1,7 @@
 use crate::resource_clients::dataset::DatasetClient;
 use std::marker::PhantomData;
 use crate::error::ApifyClientError;
-use crate::generic_types::{BaseBuilder, PaginationList};
+use crate::generic_types::{BaseBuilder, PaginationList, NoPayload};
 
 #[derive(Debug)]
 pub enum Format {
@@ -38,7 +38,6 @@ impl std::fmt::Display for Format {
 #[derive(Default, QueryParams)]
 #[allow(non_snake_case)]
 pub struct GetItemsParams {
-    format: Option<Format>,
     clean: Option<bool>,
     offset: Option<u64>,
     limit: Option<u64>,
@@ -79,11 +78,109 @@ impl <'a, T: serde::de::DeserializeOwned> GetItemsBuilder<'a, T> {
         let mut base_builder: BaseBuilder<'_, PaginationList<T>> = BaseBuilder::new(
             self.dataset_client.apify_client,
             self.dataset_client.url_segment.clone(),
-            self.dataset_client.identifier.clone(),
             reqwest::Method::GET,
         );
-        base_builder.query_string(self.options.to_query_params());
+        base_builder.append_query_string(self.options.to_query_params());
         Ok(base_builder.send().await?)
+    }
+
+    pub fn clean(& mut self, clean: bool) -> &'_ mut Self {
+        self.options.clean = Some(clean);
+        self
+    }
+    pub fn offset(& mut self, offset: u64) -> &'_ mut Self {
+        self.options.offset = Some(offset);
+        self
+    }
+    pub fn limit(& mut self, limit: u64) -> &'_ mut Self {
+        self.options.limit = Some(limit);
+        self
+    }
+    pub fn fields(& mut self, fields: Vec<String>) -> &'_ mut Self {
+        self.options.fields = Some(fields.join(","));
+        self
+    }
+    pub fn omit(& mut self, omit: Vec<String>) -> &'_ mut Self {
+        self.options.omit = Some(omit.join(","));
+        self
+    }
+    pub fn unwind(& mut self, unwind: String) -> &'_ mut Self {
+        self.options.unwind = Some(unwind);
+        self
+    }
+    pub fn desc(& mut self, desc: bool) -> &'_ mut Self {
+        self.options.desc = Some(desc);
+        self
+    }
+    pub fn attachment(& mut self, attachment: bool) -> &'_ mut Self {
+        self.options.attachment = Some(attachment);
+        self
+    }
+    pub fn delimiter(& mut self, delimiter: String) -> &'_ mut Self {
+        self.options.delimiter = Some(delimiter);
+        self
+    }
+    pub fn bom(& mut self, bom: bool) -> &'_ mut Self {
+        self.options.bom = Some(bom);
+        self
+    }
+    pub fn xml_root(& mut self, xml_root: String) -> &'_ mut Self {
+        self.options.xmlRoot = Some(xml_root);
+        self
+    }
+    pub fn xml_row(& mut self, xml_row: String) -> &'_ mut Self {
+        self.options.xmlRow = Some(xml_row);
+        self
+    }
+    pub fn skip_header_row(& mut self, skip_header_row: bool) -> &'_ mut Self {
+        self.options.skipHeaderRow = Some(skip_header_row);
+        self
+    }
+    pub fn skip_hidden(& mut self, skip_hidden: bool) -> &'_ mut Self {
+        self.options.skipHidden = Some(skip_hidden);
+        self
+    }
+    pub fn skip_empty(& mut self, skip_empty: bool) -> &'_ mut Self {
+        self.options.skipEmpty = Some(skip_empty);
+        self
+    }
+    pub fn simplified(& mut self, simplified: bool) -> &'_ mut Self {
+        self.options.simplified = Some(simplified);
+        self
+    }
+    pub fn skip_failed_pages(& mut self, skip_failed_pages: bool) -> &'_ mut Self {
+        self.options.skipFailedPages = Some(skip_failed_pages);
+        self
+    }
+}
+
+// TODO: Deduplicate
+pub struct DownloadItemsBuilder<'a> {
+    dataset_client: &'a DatasetClient<'a>,
+    format: Format,
+    options: GetItemsParams,
+}
+
+impl <'a> DownloadItemsBuilder<'a> {
+    pub fn new(dataset_client: &'a DatasetClient<'a>, format: Format) -> Self {
+        DownloadItemsBuilder {
+            dataset_client,
+            format,
+            options: Default::default(),
+        }
+    }
+
+    // All formats except XLSX can be converted to a string
+    pub async fn send(self) -> Result<Vec<u8>, ApifyClientError> {
+        let mut base_builder: BaseBuilder<'_, Vec<u8>> = BaseBuilder::new(
+            self.dataset_client.apify_client,
+            self.dataset_client.url_segment.clone(),
+            reqwest::Method::GET,
+        );
+        base_builder.append_query_string(self.options.to_query_params());
+        base_builder.append_query_string(format!("format={}&attachment=true", self.format));
+        let resp = base_builder.validate_and_send_request().await?;
+        Ok(resp.bytes().await?.to_vec())
     }
 
     pub fn clean(& mut self, clean: bool) -> &'_ mut Self {

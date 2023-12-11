@@ -1,3 +1,3 @@
 pub mod run;
 pub mod dataset;
-pub mod datasets;
+pub mod dataset_collection;
